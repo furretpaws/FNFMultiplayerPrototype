@@ -53,6 +53,7 @@ class Main {
 				}
 			} catch (err) {
 				trace("what the fuck");
+				trace(err);
 			}
 		}
 		server.onData = (bytes:IncomingBytes) -> {
@@ -250,12 +251,63 @@ class Main {
 									})));
 									bytes.socket.close();
 								}
+							case "CHAT":
+								trace("kekw");
+								if (isBroLoggedIn(bytes.socket)) {
+									trace("what");
+									var message:String = json.d.message;
+									if (message != null) {
+										bytes.send(haxe.io.Bytes.ofString(haxe.Json.stringify({
+											status: "OK",
+											d: {
+												event: "CHAT",
+												message: message
+											}
+										})));
+										var username:String = checkWhoDidThis(bytes.socket);
+										broadcastMessageExceptForUser(bytes.socket, Bytes.ofString(haxe.Json.stringify({
+											event: "CHAT",
+											d: {
+												username: username,
+												message: message
+											}
+										})));
+									} else {
+										bytes.send(haxe.io.Bytes.ofString(haxe.Json.stringify({
+											status: "NOT_OK",
+											d: {
+												event: "CHAT",
+												failed: true,
+												error: "Message cannot be NULL"
+											}
+										})));
+									}
+								} else {
+									trace("kek?");
+									bytes.send(haxe.io.Bytes.ofString(haxe.Json.stringify({
+										error: true,
+										d: "The event you have requested is for logged in users only. As a result, you will be disconnected from the server."
+									})));
+									bytes.socket.close();
+								}
 						}
 					}
 				}
 			}
 		}
 		server.start();
+	}
+
+	static function isBroLoggedIn(socket:Socket) {
+		var socketFound:Bool = false;
+		@:privateAccess
+		for (i in 0...sessions.length) {
+			@:privateAccess
+			if (socket == sessions[i].socket) {
+				socketFound = true;
+			}
+		}
+		return socketFound;
 	}
 
 	static function checkWhoDidThis(socket:Socket):String {
